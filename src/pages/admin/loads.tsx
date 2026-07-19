@@ -132,7 +132,7 @@ export default function LoadsPage() {
                   </TableCell>
                   <TableCell>{load.brokerName}</TableCell>
                   <TableCell className="tabular font-medium">{formatCurrency(load.detentionAmount)}</TableCell>
-                  <TableCell><RiskBadge level={load.riskLevel} score={load.riskScore} /></TableCell>
+                  <TableCell><RiskBadge level={load.riskLevel} /></TableCell>
                   <TableCell>
                     {load.claimId ? (
                       <Badge variant="primary">Claim created</Badge>

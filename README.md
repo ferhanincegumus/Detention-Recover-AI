@@ -66,10 +66,28 @@ src/
 
 - [x] **M0** — Foundation & design system
 - [x] **M1** — Landing page (conversion-optimized, SEO)
-- [ ] **M2** — Auth & admin app shell
-- [ ] **M3** — Data layer & entities
-- [ ] **M4** — Dashboard
-- [ ] **M5** — Loads, Claims, Claim detail
-- [ ] **M6** — Case leads, Recovery inbox, Broker intelligence, Follow-ups
-- [ ] **M7** — Documents, Analytics, Settings
-- [ ] **M8** — Base44 backend, integrations, tests, polish
+- [x] **M2** — Auth & admin app shell (command palette, RBAC)
+- [x] **M3** — Data layer, seeded mock backend & business logic
+- [x] **M4** — Dashboard (KPIs, charts, AI recommendations)
+- [x] **M5** — Loads, Claims, Claim detail (AI writer, settlement, PDF)
+- [x] **M6** — Case leads, Recovery inbox, Broker intelligence, Follow-ups
+- [x] **M7** — Documents, Analytics, Settings, Profile
+- [x] **M8** — Base44 backend, integrations, tests, polish
+
+## Backend
+
+The [`base44/`](./base44) directory contains the production backend: entity
+schemas, serverless functions (Resend inbound/outbound email, Twilio SMS &
+WhatsApp, AI via InvokeLLM), the idempotent recovery-automation workflow, and a
+deployment guide. See [`base44/README.md`](./base44/README.md).
+
+## Testing
+
+```bash
+npm run test
+```
+
+45 tests cover the domain logic (detention, commission, risk scoring), the
+integration contracts (email threading/idempotency, SMS templates, webhook
+signature verification, dedup, rate limiting), and an end-to-end claim
+lifecycle (load → claim → paid → follow-ups cancelled + audit log).

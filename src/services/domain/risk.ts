@@ -18,7 +18,9 @@ export function scoreLoadStrength(load: Pick<Load, "documents" | "billableDetent
   if (load.billableDetentionHours < 1) score -= 25;
   else if (load.billableDetentionHours < 2) score -= 10;
   const clamped = clamp(Math.round(score), 5, 100);
-  return { score: clamped, level: riskFromScore(clamped) };
+  // Higher strength score → LOWER risk. Invert before bucketing so a weak
+  // claim (low score) surfaces as high risk.
+  return { score: clamped, level: riskFromScore(100 - clamped) };
 }
 
 /**

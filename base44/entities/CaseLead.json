@@ -1,0 +1,34 @@
+{
+  "name": "CaseLead",
+  "description": "An inbound recovery request from the landing page or referral.",
+  "rls": { "ownerField": "ownerId", "softDeleteField": "deletedAt" },
+  "indexes": [
+    { "fields": ["ownerId", "status"] },
+    { "fields": ["email"] }
+  ],
+  "schema": {
+    "type": "object",
+    "required": ["companyName", "contactName", "phone", "email", "brokerName", "status", "ownerId"],
+    "properties": {
+      "companyName": { "type": "string" },
+      "contactName": { "type": "string" },
+      "phone": { "type": "string" },
+      "email": { "type": "string", "format": "email" },
+      "brokerName": { "type": "string" },
+      "loadCount": { "type": "string" },
+      "estimatedAmount": { "type": "number" },
+      "details": { "type": "string" },
+      "status": {
+        "type": "string",
+        "enum": ["new", "reviewed", "contacted", "recovery_started", "recovered", "rejected", "lost"]
+      },
+      "source": { "type": "string", "enum": ["landing", "manual", "referral"] },
+      "tags": { "type": "array", "items": { "type": "string" } },
+      "notes": { "type": "array", "items": { "type": "object" } },
+      "linkedClaimId": { "type": ["string", "null"] },
+      "lastContactedAt": { "type": ["string", "null"], "format": "date-time" },
+      "ownerId": { "type": "string" },
+      "deletedAt": { "type": ["string", "null"], "format": "date-time" }
+    }
+  }
+}

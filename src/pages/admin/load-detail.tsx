@@ -86,7 +86,7 @@ export default function LoadDetailPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>Stops & detention</CardTitle>
-              <RiskBadge level={load.riskLevel} score={load.riskScore} />
+              <RiskBadge level={load.riskLevel} />
             </CardHeader>
             <CardContent className="space-y-4">
               {load.stops.map((stop) => {
