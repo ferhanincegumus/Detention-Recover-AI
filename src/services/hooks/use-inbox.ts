@@ -10,6 +10,14 @@ export function useInbox() {
   });
 }
 
+export function useClaimThread(claimId: ID | undefined) {
+  return useQuery({
+    queryKey: ["inbox", "thread", claimId],
+    queryFn: () => inboxApi.threadForClaim(claimId!),
+    enabled: Boolean(claimId),
+  });
+}
+
 export function useMarkInboxRead() {
   const qc = useQueryClient();
   return useMutation({

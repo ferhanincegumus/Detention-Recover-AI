@@ -2,7 +2,8 @@ import { getDb } from "@/services/backend/store";
 import { sleep } from "@/lib/utils";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Claim } from "@/types/claim";
-import type { Load } from "@/types/load";
+import type { Load, ParsedRateConfirmation } from "@/types/load";
+import { StopType } from "@/types/load";
 import { CHARGE_TYPE_LABELS } from "@/types/common";
 import { ReplyClassification, REPLY_CLASSIFICATION_LABELS } from "@/types/communication";
 
@@ -25,6 +26,48 @@ export interface ClaimLetterResult {
 }
 
 export const aiApi = {
+  /**
+   * Parse an uploaded rate confirmation into structured load fields. In mock
+   * mode this returns a realistic extraction; in Base44 mode it's an InvokeLLM
+   * call with a document-extraction prompt.
+   */
+  async parseRateConfirmation(fileName: string): Promise<ParsedRateConfirmation> {
+    await sleep(1400);
+    const settings = getDb().settings;
+    const brokers = getDb().brokers;
+    const broker = brokers[Math.max(0, fileName.length % brokers.length)];
+    return {
+      brokerName: broker?.name ?? "Unknown Broker",
+      referenceNumber: `LD-${10000 + (fileName.length * 137) % 89999}`,
+      freeHours: settings.defaultFreeHours,
+      ratePerHour: settings.defaultRatePerHour,
+      customerPhone: "+12145550142",
+      driverName: "Assigned driver",
+      stops: [
+        {
+          type: StopType.Pickup,
+          sequence: 1,
+          facilityName: "Origin DC",
+          address: "Dallas, TX",
+          appointmentAt: undefined,
+          arrivedAt: undefined,
+          departedAt: undefined,
+        },
+        {
+          type: StopType.Delivery,
+          sequence: 2,
+          facilityName: "Destination Whse",
+          address: "Atlanta, GA",
+          appointmentAt: undefined,
+          arrivedAt: undefined,
+          departedAt: undefined,
+        },
+      ],
+      confidence: 0.92,
+      warnings: ["Gate in/out timestamps not found — add them to calculate detention."],
+    };
+  },
+
   /** Draft a formal detention demand letter from a claim + its load. */
   async writeClaimLetter(claim: Claim, load?: Load): Promise<ClaimLetterResult> {
     await sleep(AI_LATENCY_MS);

@@ -32,6 +32,14 @@ export const inboxApi = {
     return withLatency(items);
   },
 
+  /** Full email thread for a claim, oldest first. */
+  async threadForClaim(claimId: ID): Promise<EmailMessage[]> {
+    const items = getDb()
+      .emails.filter((e) => e.claimId === claimId)
+      .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+    return withLatency(items);
+  },
+
   async markRead(id: ID): Promise<void> {
     return withLatency(
       mutate((db) => {
