@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/app/theme-provider";
 
 /** Chart palette — amber primary + asphalt grays. Consumed by Recharts. */
 export const CHART_COLORS = {
@@ -8,6 +9,24 @@ export const CHART_COLORS = {
   grid: "hsl(220 12% 22%)",
   series: ["#f59e0b", "#22c55e", "#647082", "#fcd34d", "#4f596b"],
 } as const;
+
+/**
+ * Theme-aware chart colors. Recharts sets stroke/fill as attributes (which
+ * don't resolve CSS variables reliably), so we return concrete hsl() values
+ * matched to the current admin theme — readable grid/axis on both light and
+ * dark surfaces.
+ */
+export function useChartColors() {
+  const { theme } = useTheme();
+  const dark = theme === "dark";
+  return {
+    series: CHART_COLORS.series,
+    primary: dark ? "hsl(38 92% 50%)" : "hsl(30 95% 44%)",
+    success: dark ? "hsl(142 64% 45%)" : "hsl(152 68% 30%)",
+    grid: dark ? "hsl(220 12% 24%)" : "hsl(220 16% 88%)",
+    axis: dark ? "hsl(218 11% 60%)" : "hsl(220 13% 42%)",
+  };
+}
 
 interface TooltipEntry {
   name?: string;

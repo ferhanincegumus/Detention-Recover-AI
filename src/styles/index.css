@@ -9,40 +9,42 @@
  */
 @layer base {
   :root {
-    /* Light — used on public/marketing + print */
-    --background: 210 20% 98%;
-    --foreground: 222 20% 12%;
+    /* Light — admin panel default. Tuned for WCAG AA on white surfaces. */
+    --background: 210 24% 98%; /* soft off-white page */
+    --foreground: 222 32% 13%; /* near-black text (~15:1 on bg) */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 20% 12%;
+    --card-foreground: 222 32% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 12%;
+    --popover-foreground: 222 32% 13%;
 
-    --primary: 38 92% 50%; /* amber-500 */
-    --primary-foreground: 26 60% 12%;
+    /* amber-600 — darker so amber text/accents pass contrast and button text
+       stays readable; buttons still read as the primary orange action. */
+    --primary: 30 95% 44%;
+    --primary-foreground: 40 60% 98%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 20% 20%;
+    --secondary: 220 16% 95%;
+    --secondary-foreground: 222 25% 22%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 220 16% 95%;
+    --muted-foreground: 220 13% 38%; /* ~6.3:1 on white — AA body text */
 
-    --accent: 220 14% 94%;
-    --accent-foreground: 222 20% 20%;
+    --accent: 220 16% 93%;
+    --accent-foreground: 222 25% 22%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 74% 44%; /* darker red — AA as text on white */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 64% 38%;
+    --success: 152 68% 30%; /* darker green — AA for money/recovered text */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 26 60% 12%;
+    --warning: 30 95% 40%;
+    --warning-foreground: 40 60% 98%;
 
-    --border: 220 13% 90%;
-    --input: 220 13% 88%;
-    --ring: 38 92% 50%;
+    --border: 220 16% 88%; /* visible card/section separation on white */
+    --input: 220 16% 84%;
+    --ring: 30 95% 44%;
 
     --radius: 0.75rem;
   }

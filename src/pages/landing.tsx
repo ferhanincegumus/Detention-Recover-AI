@@ -11,8 +11,10 @@ import { BrokerLookupSection } from "@/features/marketing/components/broker-look
 import { CaseFormSection } from "@/features/marketing/components/case-form-section";
 import { FloatingCta } from "@/features/marketing/components/floating-cta";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { useSectionTheme } from "@/hooks/use-section-theme";
 
 export default function LandingPage() {
+  useSectionTheme("dark"); // landing keeps the dark brand identity
   useDocumentMeta({
     title: "Detention Recover AI — No Recovery, No Fee",
     description:

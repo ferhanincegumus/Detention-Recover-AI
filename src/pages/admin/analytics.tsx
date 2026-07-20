@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import { BarChart3, TrendingUp, Trophy, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
-import { ChartCard, ChartTooltip, CHART_COLORS } from "@/components/shared/chart";
+import { ChartCard, ChartTooltip, useChartColors } from "@/components/shared/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecoveryTrendChart } from "@/features/dashboard/components/recovery-trend-chart";
@@ -24,6 +24,7 @@ export default function AnalyticsPage() {
   const { data: brokerRanking } = useBrokerRanking(6);
   const { data: customerRanking } = useCustomerRanking(6);
   const { data: forecast } = useForecast();
+  const colors = useChartColors();
 
   const totalCommission = trend?.reduce((sum, p) => sum + p.commission, 0) ?? 0;
 
@@ -46,12 +47,12 @@ export default function AnalyticsPage() {
           ) : (
             <ResponsiveContainer width="100%" height={256}>
               <BarChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                <XAxis dataKey="month" stroke={CHART_COLORS.muted} fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke={CHART_COLORS.muted} fontSize={12} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} vertical={false} />
+                <XAxis dataKey="month" stroke={colors.axis} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke={colors.axis} fontSize={12} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
                 <Bar dataKey="claims" name="Claims" radius={[4, 4, 0, 0]}>
-                  {trend.map((_, i) => <Cell key={i} fill={CHART_COLORS.primary} />)}
+                  {trend.map((_, i) => <Cell key={i} fill={colors.primary} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

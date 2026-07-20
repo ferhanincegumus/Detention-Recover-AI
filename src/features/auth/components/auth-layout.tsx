@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { routes } from "@/config/routes";
+import { useSectionTheme } from "@/hooks/use-section-theme";
 
 const HIGHLIGHTS = [
   "AI drafts every claim, reply, and follow-up",
@@ -18,6 +19,7 @@ interface AuthLayoutProps {
 
 /** Split-screen auth shell: brand panel + form card. */
 export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
+  useSectionTheme("dark"); // auth surfaces share the dark brand identity
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}

@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { Compass, MoveLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
+import { useSectionTheme } from "@/hooks/use-section-theme";
 
 export default function NotFoundPage() {
+  useSectionTheme("dark");
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 text-center">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden />

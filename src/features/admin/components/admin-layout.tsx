@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
+import { applyHtmlTheme, useTheme } from "@/app/theme-provider";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Logo } from "@/components/shared/logo";
 import { PageLoader } from "@/components/shared/page-loader";
@@ -12,6 +13,13 @@ import { routes } from "@/config/routes";
 export function AdminLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { theme } = useTheme();
+
+  // The admin panel is light by default; keep the document theme in sync with
+  // the founder's preference (and re-apply after returning from a dark surface).
+  useLayoutEffect(() => {
+    applyHtmlTheme(theme);
+  }, [theme]);
 
   // ⌘K / Ctrl-K opens global search.
   useEffect(() => {

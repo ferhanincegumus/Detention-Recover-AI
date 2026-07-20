@@ -109,8 +109,9 @@ const config: Config = {
       },
       boxShadow: {
         glow: "0 0 0 1px hsl(var(--primary) / 0.25), 0 8px 30px -8px hsl(var(--primary) / 0.35)",
-        card: "0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15)",
-        "card-lg": "0 10px 40px -12px rgb(0 0 0 / 0.5)",
+        // Subtle, cool-tinted elevation — soft on light surfaces, unobtrusive on dark.
+        card: "0 1px 2px 0 rgb(15 23 42 / 0.06), 0 1px 3px 0 rgb(15 23 42 / 0.10)",
+        "card-lg": "0 12px 32px -12px rgb(15 23 42 / 0.25)",
       },
       keyframes: {
         "accordion-down": {

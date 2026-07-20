@@ -180,7 +180,7 @@ export default function ClaimDetailPage() {
               {claim.settlementOffer != null && (
                 <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
                   <span>Settlement offer</span>
-                  <span className="tabular font-semibold text-amber-300">{formatCurrency(claim.settlementOffer)}</span>
+                  <span className="tabular font-semibold text-amber-700 dark:text-amber-300">{formatCurrency(claim.settlementOffer)}</span>
                 </div>
               )}
               <Separator />
