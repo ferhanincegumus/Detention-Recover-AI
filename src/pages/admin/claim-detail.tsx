@@ -40,6 +40,7 @@ import {
   TERMINAL_CLAIM_STATUSES,
 } from "@/types/claim";
 import { MessageDirection } from "@/types/communication";
+import { CHARGE_TYPE_LABELS } from "@/types/common";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
 
@@ -103,6 +104,7 @@ export default function ClaimDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <ClaimStatusBadge status={claim.status} />
+        <Badge variant="muted">{CHARGE_TYPE_LABELS[claim.chargeType]}</Badge>
         {!isTerminal && (
           <Select value={claim.status} onValueChange={handleStatus}>
             <SelectTrigger className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger>

@@ -10,11 +10,13 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useClaims } from "@/services/hooks/use-claims";
 import { useBrokers } from "@/services/hooks/use-brokers";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, formatRelative } from "@/lib/format";
 import { CLAIM_STATUS_META, ClaimStatus } from "@/types/claim";
+import { CHARGE_TYPE_LABELS } from "@/types/common";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
 
@@ -24,6 +26,7 @@ export default function ClaimsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [brokerId, setBrokerId] = useState<string>("all");
+  const [chargeType, setChargeType] = useState<string>("all");
   const debounced = useDebounce(search);
   const { data: brokers } = useBrokers();
 
@@ -32,8 +35,9 @@ export default function ClaimsPage() {
       search: debounced,
       status: status as ClaimStatus | "all" | "open",
       brokerId: brokerId === "all" ? undefined : brokerId,
+      chargeType: chargeType === "all" ? undefined : chargeType,
     }),
-    [debounced, status, brokerId],
+    [debounced, status, brokerId, chargeType],
   );
   const { data: claims, isLoading } = useClaims(filters);
 
@@ -60,6 +64,15 @@ export default function ClaimsPage() {
             {brokers?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={chargeType} onValueChange={setChargeType}>
+          <SelectTrigger className="sm:w-44"><SelectValue placeholder="Charge type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {Object.entries(CHARGE_TYPE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -73,6 +86,7 @@ export default function ClaimsPage() {
               <TableRow>
                 <TableHead>Claim</TableHead>
                 <TableHead>Broker</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Recovery odds</TableHead>
@@ -87,6 +101,7 @@ export default function ClaimsPage() {
                     <span className="block text-xs text-muted-foreground">{claim.loadReference}</span>
                   </TableCell>
                   <TableCell>{claim.brokerName}</TableCell>
+                  <TableCell><Badge variant="muted">{CHARGE_TYPE_LABELS[claim.chargeType]}</Badge></TableCell>
                   <TableCell className="tabular font-medium">
                     {claim.status === ClaimStatus.Paid ? (
                       <span className="text-success">{formatCurrency(claim.recoveredAmount)}</span>
