@@ -12,8 +12,57 @@ import {
   type ClaimTimelineEvent,
 } from "@/types/claim";
 import type { ID, ListParams } from "@/types/common";
-import { ActivityType } from "@/types/communication";
+import { ActivityType, SmsEvent, MessageDirection, type SmsMessage } from "@/types/communication";
 import { logActivity } from "@/services/api/activity";
+import { buildMilestoneMessage } from "@/services/integrations/messaging";
+import type { Database } from "@/services/backend/store";
+
+/** Status → customer SMS milestone map (drives the automated notifications). */
+const STATUS_SMS_EVENT: Partial<Record<ClaimStatus, SmsEvent>> = {
+  [ClaimStatus.Sent]: SmsEvent.ClaimSent,
+  [ClaimStatus.BrokerReplied]: SmsEvent.BrokerReplied,
+  [ClaimStatus.SettlementOffered]: SmsEvent.SettlementOffered,
+  [ClaimStatus.Closed]: SmsEvent.CaseClosed,
+};
+
+/**
+ * Queue a milestone SMS to the customer. Idempotent per (claim, event) so
+ * re-transitioning a status never double-texts.
+ */
+function queueMilestoneSms(db: Database, claim: Claim, event: SmsEvent): void {
+  if (!claim.customerPhone) return;
+  const already = db.messages.some((m) => m.claimId === claim.id && m.event === event);
+  if (already) return;
+
+  const nowIso = new Date().toISOString();
+  const message: SmsMessage = {
+    id: uid("sms"),
+    channel: "sms",
+    direction: MessageDirection.Outbound,
+    to: claim.customerPhone,
+    from: db.settings.companyPhone,
+    body: buildMilestoneMessage(event, {
+      companyName: db.settings.companyName,
+      brokerName: claim.brokerName,
+      claimNumber: claim.claimNumber,
+      amount: event === SmsEvent.Paid ? claim.recoveredAmount : (claim.settlementOffer ?? undefined),
+    }),
+    event,
+    claimId: claim.id,
+    status: "delivered",
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    ownerId: OWNER_ID,
+  };
+  db.messages = [message, ...db.messages];
+  logActivity(db, {
+    type: ActivityType.SmsSent,
+    title: `SMS to ${claim.customerName ?? "customer"}`,
+    description: message.body,
+    claimId: claim.id,
+    automated: true,
+  });
+}
 
 export interface ClaimFilters extends ListParams {
   status?: ClaimStatus | "all" | "open";
@@ -96,6 +145,10 @@ export const claimsApi = {
           claimId: claim.id,
           automated: false,
         });
+
+        // Automated customer SMS on milestone statuses.
+        const smsEvent = STATUS_SMS_EVENT[status];
+        if (smsEvent) queueMilestoneSms(db, claim, smsEvent);
         return claim;
       }),
     );
@@ -142,6 +195,9 @@ export const claimsApi = {
           claimId: claim.id,
           automated: false,
         });
+
+        // Celebrate with the customer.
+        queueMilestoneSms(db, claim, SmsEvent.Paid);
         return claim;
       }),
     );
