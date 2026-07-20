@@ -14,7 +14,9 @@ Bu depoda çalışırken aşağıdaki kurallara **her zaman** uy. Ayrıntılı g
    npm run build
    ```
    (Sadece markdown/dokümanı değiştiriyorsan `build` yeterlidir.)
-4. **Hepsi geçince** anlamlı bir commit at ve `claude/detention-recover-ai-3i6ie5` dalına push'la. Vercel otomatik yayınlar. Kullanıcı istemedikçe başka dala push'lama, PR açma.
+4. **Hepsi geçince** anlamlı bir commit at ve `claude/detention-recover-ai-3i6ie5` dalına push'la.
+   - **Bu projede `main` YOKTUR.** `claude/detention-recover-ai-3i6ie5` hem varsayılan hem **production** dalıdır ve Vercel'e doğrudan bağlıdır: **push = anında canlı yayın.** Merge diye bir adım yoktur.
+   - Kullanıcıya **asla merge/PR önerme.** Başka dala push'lama.
 5. **Bir şey bozulursa** kullanıcıya net şekilde şunu söyle: **"Vercel'de Instant Rollback'e bas"** (Deployments → çalışan eski sürüm → ⋯ → Instant Rollback). Sonra hatayı mock modda düzelt.
 
 ## Proje özeti

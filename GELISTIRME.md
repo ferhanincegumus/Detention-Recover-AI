@@ -85,14 +85,14 @@ supabase/               → veritabanı şeması ve sunucu fonksiyonları
 
 ## 5. Yayına alma (deploy)
 
-- Değişiklikler `claude/detention-recover-ai-3i6ie5` dalına (branch) gönderilir (*push*).
-- Bu dal `main`'e birleştiğinde **Vercel otomatik yayınlar** (canlı, Supabase'li site).
-- GitHub Pages ise `main`'e her push'ta mock modlu ücretsiz demoyu yayınlar.
+- Bu projede **`main` dalı yoktur.** `claude/detention-recover-ai-3i6ie5` hem varsayılan hem **production** dalıdır.
+- Bu dal **Vercel'e doğrudan bağlıdır**: değişiklik bu dala **push** edildiği an **canlıya çıkar** (1–2 dakikada). Ayrıca "merge" gibi bir adım **yoktur**.
+- Yani akış tek adımdır: kontroller geçer → commit → push → site güncellenir.
 
 **Terim açıklamaları:**
-- *branch (dal)*: üzerinde çalıştığımız kod kolu.
-- *push*: değişiklikleri internetteki depoya (GitHub) gönderme.
-- *deploy*: uygulamayı canlıya çıkarma.
+- *branch (dal)*: üzerinde çalıştığımız kod kolu. Burada tek ve production dalı bu.
+- *push*: değişiklikleri internetteki depoya (GitHub) gönderme → burada aynı zamanda canlı yayın demektir.
+- *deploy*: uygulamayı canlıya çıkarma (Vercel bunu otomatik yapar).
 
 ---
 
