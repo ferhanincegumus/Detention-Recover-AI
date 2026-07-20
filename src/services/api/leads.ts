@@ -104,6 +104,16 @@ export const leadsApi = {
     );
   },
 
+  /** Soft-delete a lead (hidden from lists; never hard-deleted). */
+  async remove(id: ID): Promise<void> {
+    return withLatency(
+      mutate((db) => {
+        const lead = db.leads.find((l) => l.id === id);
+        if (lead) lead.deletedAt = new Date().toISOString();
+      }),
+    );
+  },
+
   /** Move a lead into active recovery. Idempotent on status. */
   async startRecovery(id: ID): Promise<CaseLead> {
     return withLatency(

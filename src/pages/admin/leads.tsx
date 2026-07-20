@@ -1,16 +1,17 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Phone, Play, Users } from "lucide-react";
+import { MessageSquare, Phone, Play, Trash2, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { LeadStatusBadge } from "@/components/shared/status-badge";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLeads, useStartRecovery } from "@/services/hooks/use-leads";
+import { useLeads, useStartRecovery, useDeleteLead } from "@/services/hooks/use-leads";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { formatPhone, formatRelative } from "@/lib/format";
@@ -25,6 +26,8 @@ export default function LeadsPage() {
   const [status, setStatus] = useState<string>("all");
   const debounced = useDebounce(search);
   const startRecovery = useStartRecovery();
+  const deleteLead = useDeleteLead();
+  const [leadToDelete, setLeadToDelete] = useState<CaseLead | null>(null);
 
   const filters = useMemo(
     () => ({ search: debounced, status: status as LeadStatus | "all" }),
@@ -38,6 +41,17 @@ export default function LeadsPage() {
       toast.success("Recovery started", `${lead.companyName} moved to active recovery.`);
     } catch {
       toast.error("Could not start recovery");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!leadToDelete) return;
+    try {
+      await deleteLead.mutateAsync(leadToDelete.id);
+      toast.success("Lead deleted", `${leadToDelete.companyName} was removed.`);
+      setLeadToDelete(null);
+    } catch {
+      toast.error("Could not delete lead");
     }
   };
 
@@ -78,7 +92,7 @@ export default function LeadsPage() {
                 <TableHead>Loads</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Received</TableHead>
-                <TableHead className="w-32" />
+                <TableHead className="w-40" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,6 +119,14 @@ export default function LeadsPage() {
                           <Play className="h-4 w-4 text-primary" />
                         </Button>
                       ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Delete lead"
+                        onClick={() => setLeadToDelete(lead)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -113,6 +135,21 @@ export default function LeadsPage() {
           </Table>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={leadToDelete !== null}
+        onOpenChange={(open) => !open && setLeadToDelete(null)}
+        title="Delete this lead?"
+        description={
+          leadToDelete
+            ? `"${leadToDelete.companyName}" will be removed from your case leads. This can't be undone from the app.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        destructive
+        loading={deleteLead.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

@@ -58,3 +58,11 @@ export function useStartRecovery() {
     onSuccess: invalidate,
   });
 }
+
+export function useDeleteLead() {
+  const invalidate = useLeadInvalidation();
+  return useMutation({
+    mutationFn: (id: ID) => leadsApi.remove(id),
+    onSuccess: invalidate,
+  });
+}
