@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock, TrendingUp } from "lucide-react";
+import { Clock, Info, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/format";
@@ -23,11 +23,16 @@ export function RecoveryCalculator({ className }: { className?: string }) {
     const monthlyRecoverable =
       monthlyBilled * DETENTION.UNPAID_RATE * DETENTION.RECOVERY_SUCCESS_RATE;
     return {
+      billableHours,
       perLoad,
       monthly: monthlyRecoverable,
       annual: monthlyRecoverable * 12,
     };
   }, [loadsPerMonth, detainedHours, ratePerHour]);
+
+  // Below free time there is nothing to recover — show a hint so a $0 result
+  // doesn't read as "broken".
+  const belowFreeTime = estimate.billableHours <= 0;
 
   return (
     <Card className={className}>
@@ -88,6 +93,14 @@ export function RecoveryCalculator({ className }: { className?: string }) {
               <p>{formatCurrency(estimate.perLoad)}/load</p>
             </div>
           </div>
+
+          {belowFreeTime && (
+            <p className="mt-3 flex items-start gap-1.5 border-t border-success/20 pt-3 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              The first {DETENTION.FREE_HOURS} hours are free time — increase the detained hours
+              above {DETENTION.FREE_HOURS}h to see your recovery.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
