@@ -17,16 +17,24 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/format";
 import { calculateDetention } from "@/services/domain/detention";
+import { calculateChargeAmount } from "@/services/domain/charges";
 import { aiApi } from "@/services/api/ai";
 import { useCreateLoad, useUpdateLoad } from "@/services/hooks/use-loads";
 import { useSettings } from "@/services/hooks/use-settings";
 import { loadFormSchema, emptyLoadForm, type LoadFormValues } from "@/features/loads/load-schema";
 import type { LoadInput } from "@/services/api/loads";
 import { StopType, type Load } from "@/types/load";
-import { ChargeType } from "@/types/common";
+import { ChargeType, CHARGE_TYPE_LABELS } from "@/types/common";
 
 function toLoadInput(values: LoadFormValues): LoadInput {
   return {
@@ -35,19 +43,23 @@ function toLoadInput(values: LoadFormValues): LoadInput {
     customerName: values.customerName,
     customerPhone: values.customerPhone,
     driverName: values.driverName,
-    // Charge-type selector is added in the next step; detention is the default.
-    chargeType: ChargeType.Detention,
+    chargeType: values.chargeType,
     freeHours: values.freeHours,
     ratePerHour: values.ratePerHour,
     stops: values.stops.map((s) => ({
       type: s.type,
       sequence: s.sequence,
       facilityName: s.facilityName,
-      address: s.address,
+      address: s.address ?? "",
       appointmentAt: s.appointmentAt || undefined,
       arrivedAt: s.arrivedAt || undefined,
       departedAt: s.departedAt || undefined,
     })),
+    layoverNights: values.layoverNights,
+    layoverNightlyRate: values.layoverNightlyRate,
+    tonuAmount: values.tonuAmount,
+    accessorialAmount: values.accessorialAmount,
+    accessorialDescription: values.accessorialDescription,
     documents: {
       hasRateConfirmation: values.hasRateConfirmation,
       hasBol: values.hasBol,
@@ -78,6 +90,7 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
         customerName: load.customerName ?? "",
         customerPhone: load.customerPhone ?? "",
         driverName: load.driverName ?? "",
+        chargeType: load.chargeType,
         freeHours: load.freeHours,
         ratePerHour: load.ratePerHour,
         stops: load.stops.map((s) => ({
@@ -89,6 +102,11 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
           arrivedAt: s.arrivedAt ? s.arrivedAt.slice(0, 16) : "",
           departedAt: s.departedAt ? s.departedAt.slice(0, 16) : "",
         })),
+        layoverNights: load.layoverNights ?? 1,
+        layoverNightlyRate: load.layoverNightlyRate ?? 150,
+        tonuAmount: load.tonuAmount ?? 250,
+        accessorialAmount: load.accessorialAmount ?? 150,
+        accessorialDescription: load.accessorialDescription ?? "",
         hasRateConfirmation: load.documents.hasRateConfirmation,
         hasBol: load.documents.hasBol,
         hasPod: load.documents.hasPod,
@@ -104,17 +122,27 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
   });
 
   const watched = form.watch();
-  const detentionPreview = useMemo(() => {
+  const chargePreview = useMemo(() => {
     const stops = watched.stops.map((s, i) => ({
       id: String(i),
       type: s.type,
       sequence: s.sequence,
-      address: s.address,
+      address: s.address ?? "",
       arrivedAt: s.arrivedAt || undefined,
       departedAt: s.departedAt || undefined,
     }));
-    return calculateDetention(stops, Number(watched.freeHours) || 0, Number(watched.ratePerHour) || 0);
+    const detention = calculateDetention(stops, Number(watched.freeHours) || 0, Number(watched.ratePerHour) || 0);
+    const charge = calculateChargeAmount({
+      chargeType: watched.chargeType,
+      detentionAmount: detention.amount,
+      layoverNights: Number(watched.layoverNights) || 0,
+      layoverNightlyRate: Number(watched.layoverNightlyRate) || 0,
+      tonuAmount: Number(watched.tonuAmount) || 0,
+      accessorialAmount: Number(watched.accessorialAmount) || 0,
+    });
+    return { detention, charge };
   }, [watched]);
+  const isDetention = watched.chargeType === ChargeType.Detention;
 
   const handleParse = async () => {
     setParsing(true);
@@ -153,7 +181,7 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
         toast.success("Load updated");
       } else {
         await createLoad.mutateAsync(toLoadInput(values));
-        toast.success("Load created", "Detention calculated automatically.");
+        toast.success("Load created", "Charge amount calculated automatically.");
       }
       onOpenChange(false);
     } catch {
@@ -181,6 +209,31 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <FormField
+              control={form.control}
+              name="chargeType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Charge type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(CHARGE_TYPE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -226,35 +279,108 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="freeHours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Free hours</FormLabel>
-                    <FormControl><Input type="number" step="0.5" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="ratePerHour"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Detention rate / hour ($)</FormLabel>
-                    <FormControl><Input type="number" step="5" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isDetention && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="freeHours"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Free hours</FormLabel>
+                        <FormControl><Input type="number" step="0.5" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="ratePerHour"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Detention rate / hour ($)</FormLabel>
+                        <FormControl><Input type="number" step="5" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {watched.chargeType === ChargeType.Layover && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="layoverNights"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Layover nights</FormLabel>
+                        <FormControl><Input type="number" step="1" min="0" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="layoverNightlyRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nightly rate ($)</FormLabel>
+                        <FormControl><Input type="number" step="10" min="0" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {watched.chargeType === ChargeType.Tonu && (
+                <FormField
+                  control={form.control}
+                  name="tonuAmount"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>TONU amount ($)</FormLabel>
+                      <FormControl><Input type="number" step="10" min="0" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {watched.chargeType === ChargeType.Accessorial && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="accessorialAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Amount ($)</FormLabel>
+                        <FormControl><Input type="number" step="10" min="0" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="accessorialDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl><Input placeholder="Lumper fee, reweigh…" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </div>
 
-            <Separator />
-
-            <div className="space-y-4">
-              <p className="text-sm font-semibold">Stops & timestamps</p>
-              {watched.stops.map((stop, index) => (
+            {isDetention && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <p className="text-sm font-semibold">Stops & timestamps</p>
+                  {watched.stops.map((stop, index) => (
                 <div key={index} className="rounded-lg border border-border p-3">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {stop.type === StopType.Pickup ? "Pickup" : "Delivery"}
@@ -293,15 +419,17 @@ export function LoadFormDialog({ open, onOpenChange, load }: LoadFormDialogProps
                     />
                   </div>
                 </div>
-              ))}
-            </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/10 p-4">
-              <span className="text-sm font-medium">Calculated detention</span>
-              <span className="tabular font-display text-xl font-bold text-success">
-                {formatCurrency(detentionPreview.amount)}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {detentionPreview.billableHours}h billable
+              <span className="text-sm font-medium">Calculated amount</span>
+              <span className="tabular font-display text-right text-xl font-bold text-success">
+                {formatCurrency(chargePreview.charge.amount)}
+                <span className="ml-2 block text-xs font-normal text-muted-foreground">
+                  {chargePreview.charge.basis}
                 </span>
               </span>
             </div>
