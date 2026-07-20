@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDocuments, useUploadDocument, useDeleteDocument } from "@/services/hooks/use-documents";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
+import { uploadFile, ACCEPTED_UPLOAD_TYPES } from "@/services/storage";
 import { formatDate } from "@/lib/format";
 import { DOCUMENT_KIND_LABELS, DocumentKind } from "@/types/document";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
@@ -45,18 +46,26 @@ export default function DocumentsPage() {
   const remove = useDeleteDocument();
 
   const onFiles = async (files: FileList | null) => {
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      await upload.mutateAsync({
-        kind: inferKind(file.name),
-        name: file.name,
-        contentType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-        url: "#",
-      });
+    if (!files || files.length === 0) return;
+    let done = 0;
+    try {
+      for (const file of Array.from(files)) {
+        const stored = await uploadFile(file, { folder: "documents" });
+        await upload.mutateAsync({
+          kind: inferKind(file.name),
+          name: stored.name,
+          contentType: stored.contentType,
+          sizeBytes: stored.sizeBytes,
+          url: stored.url,
+        });
+        done += 1;
+      }
+      toast.success(`${done} file${done > 1 ? "s" : ""} uploaded`);
+    } catch (err) {
+      toast.error("Upload failed", err instanceof Error ? err.message : undefined);
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
     }
-    toast.success(`${files.length} file${files.length > 1 ? "s" : ""} uploaded`);
-    if (fileInput.current) fileInput.current.value = "";
   };
 
   return (
@@ -70,7 +79,14 @@ export default function DocumentsPage() {
           </Button>
         }
       />
-      <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        accept={ACCEPTED_UPLOAD_TYPES}
+        className="hidden"
+        onChange={(e) => onFiles(e.target.files)}
+      />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <SearchInput value={search} onChange={setSearch} placeholder="Search documents…" className="sm:max-w-xs" />
