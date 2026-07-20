@@ -74,7 +74,30 @@ src/
 - [x] **M7** — Documents, Analytics, Settings, Profile
 - [x] **M8** — Base44 backend, integrations, tests, polish
 
-## Backend
+## Deploy free on GitHub Pages (no Base44, no cost)
+
+The app is fully functional on its own — it runs against an in-browser mock
+backend (data persists in `localStorage`), so **no external services, secrets,
+or paid plans are needed**. A GitHub Actions workflow builds and publishes it to
+GitHub Pages automatically.
+
+**One-time setup:**
+
+1. Merge this branch into `main` (the workflow deploys on push to `main`).
+2. In your repo: **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
+3. Push to `main` (or run the **Deploy to GitHub Pages** workflow from the Actions
+   tab). When it finishes, your site is live at:
+   `https://ferhanincegumus.github.io/detention-recover-ai/`
+
+The workflow auto-detects the correct base path, adds an SPA deep-link fallback
+(`404.html`), and needs zero configuration. Every future push to `main`
+redeploys.
+
+> Sign in with the demo credentials shown on the login screen
+> (`admin@detentionrecover.ai` / `recover123`). To wire up real email/SMS later,
+> see the Base44 backend below — but it is entirely optional.
+
+## Backend (optional)
 
 The [`base44/`](./base44) directory contains the production backend: entity
 schemas, serverless functions (Resend inbound/outbound email, Twilio SMS &

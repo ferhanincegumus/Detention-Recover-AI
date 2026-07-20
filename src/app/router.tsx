@@ -36,6 +36,10 @@ const ProfilePage = lazy(() => import("@/pages/admin/profile"));
 
 const s = (node: React.ReactNode) => <Suspense fallback={<PageLoader />}>{node}</Suspense>;
 
+// Strip the trailing slash from Vite's BASE_URL so routing works both at the
+// domain root ("/") and under a GitHub Pages subpath ("/detention-recover-ai").
+const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const router = createBrowserRouter([
   { path: routes.home, element: s(<LandingPage />) },
 
@@ -75,7 +79,7 @@ const router = createBrowserRouter([
   },
 
   { path: "*", element: s(<NotFoundPage />) },
-]);
+], { basename });
 
 export function AppRouter() {
   return <RouterProvider router={router} />;

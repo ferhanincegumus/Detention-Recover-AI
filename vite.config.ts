@@ -4,7 +4,10 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 
 // https://vitejs.dev/config/
+// `base` is configurable so the same build works at a domain root (custom
+// domain / local) or under a GitHub Pages project subpath (/repo-name/).
 export default defineConfig({
+  base: process.env.VITE_BASE || "/",
   plugins: [react()],
   resolve: {
     alias: {
