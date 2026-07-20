@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import type { Claim } from "@/types/claim";
 import type { Load, ParsedRateConfirmation } from "@/types/load";
 import { StopType } from "@/types/load";
-import { CHARGE_TYPE_LABELS } from "@/types/common";
+import { ChargeType, CHARGE_TYPE_LABELS } from "@/types/common";
 import { ReplyClassification, REPLY_CLASSIFICATION_LABELS } from "@/types/communication";
 
 /**
@@ -18,6 +18,26 @@ const AI_LATENCY_MS = 900;
 function companyIdentity() {
   const s = getDb().settings;
   return { name: s.companyName, email: s.companyEmail, phone: s.companyPhone };
+}
+
+/** The charge noun used in prose (e.g. "detention", "TONU"). */
+function chargeNoun(type: ChargeType): string {
+  return type === ChargeType.Tonu ? "TONU" : CHARGE_TYPE_LABELS[type].toLowerCase();
+}
+
+/** The evidence a given charge type rests on — used in replies & defense. */
+function evidencePhrase(type: ChargeType): string {
+  switch (type) {
+    case ChargeType.Layover:
+      return "the approved overnight layover and the rate confirmation";
+    case ChargeType.Tonu:
+      return "the rate confirmation's cancellation terms";
+    case ChargeType.Accessorial:
+      return "the documented accessorial and the rate confirmation";
+    case ChargeType.Detention:
+    default:
+      return "the gate in/out timestamps";
+  }
 }
 
 export interface ClaimLetterResult {
@@ -68,35 +88,84 @@ export const aiApi = {
     };
   },
 
-  /** Draft a formal detention demand letter from a claim + its load. */
+  /** Draft a formal demand letter tuned to the claim's charge type. */
   async writeClaimLetter(claim: Claim, load?: Load): Promise<ClaimLetterResult> {
     await sleep(AI_LATENCY_MS);
     const me = companyIdentity();
     const charge = CHARGE_TYPE_LABELS[claim.chargeType];
-    const pickup = load?.stops.find((s) => s.type === "pickup");
-    const delivery = load?.stops.find((s) => s.type === "delivery");
-
     const subject = `${charge} Claim ${claim.claimNumber} — Load ${claim.loadReference} (${formatCurrency(claim.claimedAmount)})`;
+
+    const summary: string[] = [`• Charge type: ${charge}`];
+    const detail: string[] = [];
+    let grounds: string;
+
+    switch (claim.chargeType) {
+      case ChargeType.Layover: {
+        const nights = load?.layoverNights ?? "—";
+        const rate = load?.layoverNightlyRate ?? 0;
+        summary.push(
+          `• Layover: ${nights} night(s) × ${formatCurrency(rate)}/night`,
+          `• Amount due: ${formatCurrency(claim.claimedAmount)}`,
+        );
+        detail.push(
+          "The driver was held overnight beyond the scheduled service window, requiring a layover. The overnight was communicated and is supported by the rate confirmation.",
+        );
+        grounds = "Per the rate confirmation and the documented overnight layover, this amount is due and payable.";
+        break;
+      }
+      case ChargeType.Tonu: {
+        summary.push(
+          "• TONU (Truck Ordered, Not Used): flat fee per rate confirmation",
+          `• Amount due: ${formatCurrency(claim.claimedAmount)}`,
+        );
+        detail.push(
+          "Our truck was ordered and dispatched to the pickup as scheduled. The load was subsequently cancelled after dispatch, which under the cancellation terms of the rate confirmation entitles the carrier to the TONU fee.",
+        );
+        grounds = "Per the cancellation clause of the rate confirmation, this TONU fee is due and payable.";
+        break;
+      }
+      case ChargeType.Accessorial: {
+        const desc = load?.accessorialDescription || "documented accessorial";
+        summary.push(`• Accessorial: ${desc}`, `• Amount due: ${formatCurrency(claim.claimedAmount)}`);
+        detail.push(
+          `This accessorial (${desc}) was incurred in the performance of load ${claim.loadReference} and is reimbursable under the rate confirmation.`,
+        );
+        grounds = "Per the terms of the rate confirmation, this accessorial is due and payable.";
+        break;
+      }
+      case ChargeType.Detention:
+      default: {
+        const pickup = load?.stops.find((s) => s.type === "pickup");
+        const delivery = load?.stops.find((s) => s.type === "delivery");
+        summary.push(
+          `• Billable detention: ${load?.billableDetentionHours ?? "—"} hours beyond ${load?.freeHours ?? 2} hours free time`,
+          `• Rate: ${formatCurrency(load?.ratePerHour ?? 0)}/hour`,
+          `• Amount due: ${formatCurrency(claim.claimedAmount)}`,
+        );
+        detail.push(
+          "Facility timeline:",
+          pickup
+            ? `• Pickup (${pickup.facilityName ?? pickup.address}): arrived ${formatDate(pickup.arrivedAt, "MMM d, h:mm a")}, released ${formatDate(pickup.departedAt, "MMM d, h:mm a")}`
+            : "• Pickup timestamps attached",
+          delivery
+            ? `• Delivery (${delivery.facilityName ?? delivery.address}): arrived ${formatDate(delivery.arrivedAt, "MMM d, h:mm a")}, released ${formatDate(delivery.departedAt, "MMM d, h:mm a")}`
+            : "• Delivery timestamps attached",
+        );
+        grounds = "Per the terms of the rate confirmation, this detention is due and payable.";
+      }
+    }
+
     const body = [
       `To the Accounts Payable / Claims Team at ${claim.brokerName},`,
       "",
-      `We are submitting a formal ${charge.toLowerCase()} claim on behalf of ${claim.customerName ?? "our carrier"} for load ${claim.loadReference}.`,
+      `We are submitting a formal ${chargeNoun(claim.chargeType)} claim on behalf of ${claim.customerName ?? "our carrier"} for load ${claim.loadReference}.`,
       "",
       "Summary of charges:",
-      `• Charge type: ${charge}`,
-      `• Billable detention: ${load?.billableDetentionHours ?? "—"} hours beyond ${load?.freeHours ?? 2} hours free time`,
-      `• Rate: ${formatCurrency(load?.ratePerHour ?? 0)}/hour`,
-      `• Amount due: ${formatCurrency(claim.claimedAmount)}`,
+      ...summary,
       "",
-      "Facility timeline:",
-      pickup
-        ? `• Pickup (${pickup.facilityName ?? pickup.address}): arrived ${formatDate(pickup.arrivedAt, "MMM d, h:mm a")}, released ${formatDate(pickup.departedAt, "MMM d, h:mm a")}`
-        : "• Pickup timestamps attached",
-      delivery
-        ? `• Delivery (${delivery.facilityName ?? delivery.address}): arrived ${formatDate(delivery.arrivedAt, "MMM d, h:mm a")}, released ${formatDate(delivery.departedAt, "MMM d, h:mm a")}`
-        : "• Delivery timestamps attached",
+      ...detail,
       "",
-      "Supporting documentation (rate confirmation, BOL, POD, and gate timestamps) is attached. Per the terms of the rate confirmation, this detention is due and payable.",
+      `Supporting documentation is attached. ${grounds}`,
       "",
       `Please remit ${formatCurrency(claim.claimedAmount)} within 15 days, or advise if you require anything further to process payment. We're happy to resolve this quickly and professionally.`,
       "",
@@ -113,10 +182,12 @@ export const aiApi = {
     await sleep(AI_LATENCY_MS);
     const me = companyIdentity();
     const cls = classification ?? ReplyClassification.Other;
+    const noun = chargeNoun(claim.chargeType);
+    const evidence = evidencePhrase(claim.chargeType);
 
     const opener: Record<ReplyClassification, string> = {
       [ReplyClassification.SettlementOffer]: `Thank you for the offer. We appreciate ${claim.brokerName} working with us to resolve claim ${claim.claimNumber}.`,
-      [ReplyClassification.Denial]: `Thank you for your response. We'd like to revisit the denial on claim ${claim.claimNumber}, as the documentation supports the detention charge.`,
+      [ReplyClassification.Denial]: `Thank you for your response. We'd like to revisit the denial on claim ${claim.claimNumber}, as the documentation supports the ${noun} charge.`,
       [ReplyClassification.RequestDocuments]: `Happy to help. Attached are the requested documents for claim ${claim.claimNumber}.`,
       [ReplyClassification.Question]: `Thanks for reaching out regarding claim ${claim.claimNumber} — here's the detail you asked for.`,
       [ReplyClassification.Acknowledgement]: `Thank you for the acknowledgement on claim ${claim.claimNumber}. We're standing by for the next step.`,
@@ -126,10 +197,10 @@ export const aiApi = {
     };
 
     const middle: Record<ReplyClassification, string> = {
-      [ReplyClassification.SettlementOffer]: `The claimed amount of ${formatCurrency(claim.claimedAmount)} reflects verified detention with gate timestamps. We can accept a prompt settlement at ${formatCurrency(Math.round(claim.claimedAmount * 0.9))} to close this out this week.`,
-      [ReplyClassification.Denial]: `The gate in/out timestamps and POD confirm the driver was detained beyond free time. We'd ask you to reconsider based on the attached evidence.`,
+      [ReplyClassification.SettlementOffer]: `The claimed amount of ${formatCurrency(claim.claimedAmount)} reflects the ${noun} supported by ${evidence}. We can accept a prompt settlement at ${formatCurrency(Math.round(claim.claimedAmount * 0.9))} to close this out this week.`,
+      [ReplyClassification.Denial]: `${evidence.charAt(0).toUpperCase()}${evidence.slice(1)} support the ${noun} charge. We'd ask you to reconsider based on the attached evidence.`,
       [ReplyClassification.RequestDocuments]: `Please let us know if anything else is needed to process payment of ${formatCurrency(claim.claimedAmount)}.`,
-      [ReplyClassification.Question]: `The detention totals ${formatCurrency(claim.claimedAmount)} based on the documented facility times. Let me know if you'd like a breakdown by stop.`,
+      [ReplyClassification.Question]: `The ${noun} totals ${formatCurrency(claim.claimedAmount)}, supported by ${evidence}. Let me know if you'd like the full breakdown.`,
       [ReplyClassification.Acknowledgement]: `Please confirm an expected payment date for the ${formatCurrency(claim.claimedAmount)} due.`,
       [ReplyClassification.Payment]: `Please share remittance details when available so we can match it to ${claim.claimNumber}.`,
       [ReplyClassification.OutOfOffice]: `We'll circle back shortly. The ${formatCurrency(claim.claimedAmount)} remains outstanding on ${claim.claimNumber}.`,
@@ -160,11 +231,32 @@ export const aiApi = {
   async defenseReport(claim: Claim, load?: Load): Promise<string> {
     await sleep(AI_LATENCY_MS);
     const gaps = load?.missingDocuments ?? [];
+
+    // Type-specific strengths.
+    const typeStrengths: Record<ChargeType, (string | null)[]> = {
+      [ChargeType.Detention]: [
+        load?.documents.hasTimestamps ? "Gate in/out timestamps establish detention beyond free time." : null,
+        load?.documents.hasPod ? "POD confirms delivery completion." : null,
+      ],
+      [ChargeType.Layover]: [
+        "The overnight layover is documented and supported by the rate confirmation.",
+        load?.documents.hasPod ? "POD confirms the delayed delivery." : null,
+      ],
+      [ChargeType.Tonu]: [
+        "The rate confirmation's cancellation terms support the TONU fee (truck ordered, dispatched, load cancelled).",
+      ],
+      [ChargeType.Accessorial]: [
+        `The accessorial (${load?.accessorialDescription || "as documented"}) is supported by the rate confirmation.`,
+      ],
+    };
+
     const strengths = [
-      load?.documents.hasTimestamps ? "Gate in/out timestamps establish detention beyond free time." : null,
-      load?.documents.hasBol ? "BOL confirms the shipment and consignee." : null,
-      load?.documents.hasPod ? "POD confirms delivery completion." : null,
-      claim.claimedAmount > 0 ? `Claim amount (${formatCurrency(claim.claimedAmount)}) is supported by documented hours × rate.` : null,
+      load?.documents.hasRateConfirmation ? "Rate confirmation on file establishes the agreed terms." : null,
+      ...typeStrengths[claim.chargeType],
+      load?.documents.hasBol && claim.chargeType !== ChargeType.Tonu ? "BOL confirms the shipment." : null,
+      claim.claimedAmount > 0
+        ? `Claim amount (${formatCurrency(claim.claimedAmount)}) is supported by ${load?.chargeBasis ?? "the documented charge"}.`
+        : null,
     ].filter(Boolean) as string[];
 
     return [
