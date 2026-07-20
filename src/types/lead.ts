@@ -38,6 +38,15 @@ export interface LeadNote {
   body: string;
 }
 
+/** A proof document a customer attached when submitting their case. */
+export interface LeadAttachment {
+  id: ID;
+  name: string;
+  url: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export interface CaseLead extends BaseEntity {
   companyName: string;
   contactName: string;
@@ -51,6 +60,8 @@ export interface CaseLead extends BaseEntity {
   source: "landing" | "manual" | "referral";
   tags: string[];
   notes: LeadNote[];
+  /** Proof documents the customer uploaded with their submission. */
+  attachments: LeadAttachment[];
   /** Set once a recovery (claim/load) is started from this lead. */
   linkedClaimId?: ID | null;
   lastContactedAt?: ISODate | null;

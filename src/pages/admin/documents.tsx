@@ -12,7 +12,7 @@ import { useDocuments, useUploadDocument, useDeleteDocument } from "@/services/h
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "@/hooks/use-toast";
 import { uploadFile, ACCEPTED_UPLOAD_TYPES } from "@/services/storage";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatBytes } from "@/lib/format";
 import { DOCUMENT_KIND_LABELS, DocumentKind } from "@/types/document";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 
@@ -25,12 +25,6 @@ function inferKind(name: string): DocumentKind {
   if (/\.(png|jpg|jpeg|webp)$/.test(n)) return DocumentKind.Screenshot;
   if (n.endsWith(".pdf")) return DocumentKind.Pdf;
   return DocumentKind.Other;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function DocumentsPage() {

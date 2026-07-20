@@ -38,6 +38,7 @@ function ingestPublicLeads(): void {
         source: "landing",
         tags: [],
         notes: [],
+        attachments: p.attachments ?? [],
         linkedClaimId: null,
         lastContactedAt: null,
         createdAt: p.submittedAt,

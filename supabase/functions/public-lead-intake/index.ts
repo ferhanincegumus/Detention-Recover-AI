@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       email: b.email, brokerName: b.brokerName, loadCount: b.loadCount ?? "1",
       estimatedAmount: b.estimatedAmount ? Number(b.estimatedAmount) : undefined,
       details: b.details ?? "", status: "new", source: "landing", tags: [], notes: [],
+      attachments: Array.isArray(b.attachments) ? b.attachments : [],
       linkedClaimId: null, lastContactedAt: null, createdAt: nowIso, updatedAt: nowIso, ownerId,
     };
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, MessageSquare, Phone, Play, Send, Users } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileText, MessageSquare, Paperclip, Phone, Play, Send, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LeadStatusBadge } from "@/components/shared/status-badge";
@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLead, useSetLeadStatus, useAddLeadNote, useStartRecovery, useSetLeadTags } from "@/services/hooks/use-leads";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency, formatDateTime, formatPhone, formatRelative } from "@/lib/format";
+import { formatBytes, formatCurrency, formatDateTime, formatPhone, formatRelative } from "@/lib/format";
 import { LEAD_STATUS_META, LeadStatus } from "@/types/lead";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
@@ -113,6 +113,44 @@ export default function LeadDetailPage() {
                     <li key={n.id} className="rounded-lg border border-border p-3">
                       <p className="text-sm">{n.body}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{formatRelative(n.at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4" /> Proof documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lead.attachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No documents attached with this submission.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {lead.attachments.map((att) => (
+                    <li
+                      key={att.id}
+                      className="flex items-center gap-3 rounded-lg border border-border p-3"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{att.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatBytes(att.sizeBytes)}</p>
+                      </div>
+                      <Button variant="ghost" size="icon-sm" aria-label="Open" asChild>
+                        <a href={att.url} target="_blank" rel="noreferrer"><Eye className="h-4 w-4" /></a>
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" aria-label="Download" asChild>
+                        <a href={att.url} download={att.name}><Download className="h-4 w-4" /></a>
+                      </Button>
                     </li>
                   ))}
                 </ul>

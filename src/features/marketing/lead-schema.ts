@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizePhone } from "@/lib/format";
+import type { LeadAttachment } from "@/types/lead";
 
 /** Shared storage key so the admin app can read landing-page submissions. */
 export const PUBLIC_LEADS_STORAGE_KEY = "dra-public-leads";
@@ -24,6 +25,7 @@ export interface PublicLeadRecord extends CaseLeadInput {
   id: string;
   submittedAt: string;
   source: "landing";
+  attachments: LeadAttachment[];
 }
 
 export const LOAD_COUNT_OPTIONS: { value: CaseLeadInput["loadCount"]; label: string }[] = [

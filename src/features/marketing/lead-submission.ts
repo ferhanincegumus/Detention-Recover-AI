@@ -1,6 +1,7 @@
 import { uid, sleep } from "@/lib/utils";
 import { normalizePhone } from "@/lib/format";
 import { isSupabaseBackend } from "@/config/env";
+import type { LeadAttachment } from "@/types/lead";
 import {
   PUBLIC_LEADS_STORAGE_KEY,
   type CaseLeadInput,
@@ -21,13 +22,17 @@ function readQueue(): PublicLeadRecord[] {
  * app ingests as Case Leads. Idempotent per (email + broker) within a short
  * window to prevent double-submits.
  */
-export async function submitPublicLead(input: CaseLeadInput): Promise<PublicLeadRecord> {
+export async function submitPublicLead(
+  input: CaseLeadInput,
+  attachments: LeadAttachment[] = [],
+): Promise<PublicLeadRecord> {
   const record: PublicLeadRecord = {
     ...input,
     phone: normalizePhone(input.phone),
     id: uid("lead"),
     submittedAt: new Date().toISOString(),
     source: "landing",
+    attachments,
   };
 
   // Supabase: post to the public-lead-intake Edge Function (service role).
@@ -43,7 +48,7 @@ export async function submitPublicLead(input: CaseLeadInput): Promise<PublicLead
         apikey: env.supabase.anonKey,
         Authorization: `Bearer ${env.supabase.anonKey}`,
       },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, attachments }),
     });
     if (!res.ok) throw new Error(`Lead submission failed (${res.status})`);
     const body = (await res.json()) as { id?: string };

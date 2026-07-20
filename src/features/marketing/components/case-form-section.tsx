@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Loader2, Paperclip, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
@@ -29,9 +30,17 @@ import {
   type CaseLeadInput,
 } from "@/features/marketing/lead-schema";
 import { submitPublicLead } from "@/features/marketing/lead-submission";
+import { uploadFile, assertUploadable, ACCEPTED_UPLOAD_TYPES } from "@/services/storage";
+import { uid } from "@/lib/utils";
+import { formatBytes } from "@/lib/format";
+import type { LeadAttachment } from "@/types/lead";
+
+const MAX_FILES = 8;
 
 export function CaseFormSection() {
   const [submitted, setSubmitted] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const form = useForm<CaseLeadInput>({
     resolver: zodResolver(caseLeadSchema),
@@ -47,13 +56,41 @@ export function CaseFormSection() {
     },
   });
 
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    const incoming: File[] = [];
+    for (const file of Array.from(list)) {
+      try {
+        assertUploadable(file);
+        incoming.push(file);
+      } catch (err) {
+        toast.error("File not added", err instanceof Error ? err.message : undefined);
+      }
+    }
+    setFiles((prev) => [...prev, ...incoming].slice(0, MAX_FILES));
+    if (fileInput.current) fileInput.current.value = "";
+  };
+
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
+
   const onSubmit = async (values: CaseLeadInput) => {
     try {
-      await submitPublicLead(values);
+      const attachments: LeadAttachment[] = [];
+      for (const file of files) {
+        const stored = await uploadFile(file, { folder: "lead-uploads", isPublic: true });
+        attachments.push({
+          id: uid("att"),
+          name: stored.name,
+          url: stored.url,
+          contentType: stored.contentType,
+          sizeBytes: stored.sizeBytes,
+        });
+      }
+      await submitPublicLead(values, attachments);
       setSubmitted(true);
       toast.success("Case received", "We'll text you within one business day.");
-    } catch {
-      toast.error("Something went wrong", "Please try again or email us directly.");
+    } catch (err) {
+      toast.error("Something went wrong", err instanceof Error ? err.message : "Please try again or email us directly.");
     }
   };
 
@@ -67,7 +104,7 @@ export function CaseFormSection() {
       <Card className="mx-auto max-w-2xl">
         <CardContent className="p-6 sm:p-8">
           {submitted ? (
-            <SuccessState onReset={() => { setSubmitted(false); form.reset(); }} />
+            <SuccessState onReset={() => { setSubmitted(false); form.reset(); setFiles([]); }} />
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
@@ -181,9 +218,57 @@ export function CaseFormSection() {
                   )}
                 />
 
+                <div className="space-y-2">
+                  <Label>Attach proof (optional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Rate confirmation, BOL, POD, or gate-time screenshots — the more you send, the
+                    faster and more accurately we can build your claim.
+                  </p>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    multiple
+                    accept={ACCEPTED_UPLOAD_TYPES}
+                    className="hidden"
+                    onChange={(e) => addFiles(e.target.files)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => fileInput.current?.click()}
+                    disabled={files.length >= MAX_FILES}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    {files.length >= MAX_FILES ? "Maximum files added" : "Add documents"}
+                  </Button>
+                  {files.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {files.map((file, index) => (
+                        <li
+                          key={`${file.name}-${index}`}
+                          className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{formatBytes(file.size)}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Recover my money
+                  {form.formState.isSubmitting ? "Uploading & submitting…" : "Recover my money"}
                 </Button>
 
                 <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">

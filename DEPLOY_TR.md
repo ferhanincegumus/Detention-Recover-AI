@@ -19,7 +19,8 @@ Bu rehber Detention Recover AI'yı **tamamen ücretsiz** yayınlar: veritabanı,
 ### 1.2 Veritabanı şemasını kur
 1. Supabase panelinde **SQL Editor → New query**.
 2. Bu repodaki [`supabase/migrations/0001_init.sql`](./supabase/migrations/0001_init.sql) dosyasının **tamamını** yapıştır ve **Run**.
-3. Bu; tabloları, indeksleri ve RLS (satır bazlı güvenlik) politikalarını oluşturur. Her satır `owner_id`'ye göre izole edilir.
+3. Sonra ikinci dosyayı da çalıştır: [`supabase/migrations/0002_storage.sql`](./supabase/migrations/0002_storage.sql) — bu, belge yükleme için depolama alanlarını (`documents` ve `lead-uploads`) ve izinlerini oluşturur.
+4. Bunlar; tabloları, indeksleri, RLS (satır bazlı güvenlik) politikalarını ve dosya depolama alanlarını oluşturur. Her satır `owner_id`'ye göre izole edilir.
 
 ### 1.3 Admin kullanıcısını oluştur
 Bu ürün **tek admin** içindir. Kayıt (registration) canlıda kapalı olacağı için admini elle oluştur:

@@ -544,6 +544,7 @@ export function seedDatabase(): Database {
     source: "landing",
     tags: [],
     notes: [],
+    attachments: [],
     linkedClaimId: null,
     lastContactedAt: l.status === LeadStatus.New ? null : iso(subDays(now, l.days)),
     createdAt: iso(subDays(now, l.days)),
