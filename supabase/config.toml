@@ -1,0 +1,14 @@
+# Supabase project config (used by the Supabase CLI).
+# Set project_id to your project ref when linking: `supabase link --project-ref <ref>`.
+project_id = "detention-recover-ai"
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.public-lead-intake]
+# Public endpoint the landing form posts to — no JWT required.
+verify_jwt = false
+
+[functions.resend-inbound]
+# Resend webhook — authenticated by signature, not JWT.
+verify_jwt = false

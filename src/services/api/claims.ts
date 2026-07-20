@@ -15,6 +15,7 @@ import type { ID, ListParams } from "@/types/common";
 import { ActivityType, SmsEvent, MessageDirection, type SmsMessage } from "@/types/communication";
 import { logActivity } from "@/services/api/activity";
 import { buildMilestoneMessage } from "@/services/integrations/messaging";
+import { env } from "@/config/env";
 import type { Database } from "@/services/backend/store";
 
 /** Status → customer SMS milestone map (drives the automated notifications). */
@@ -30,6 +31,8 @@ const STATUS_SMS_EVENT: Partial<Record<ClaimStatus, SmsEvent>> = {
  * re-transitioning a status never double-texts.
  */
 function queueMilestoneSms(db: Database, claim: Claim, event: SmsEvent): void {
+  // SMS/WhatsApp is disabled for now (email-only via Resend).
+  if (!env.features.sms) return;
   if (!claim.customerPhone) return;
   const already = db.messages.some((m) => m.claimId === claim.id && m.event === event);
   if (already) return;

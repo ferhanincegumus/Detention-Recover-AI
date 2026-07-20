@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AuthLayout } from "@/features/auth/components/auth-layout";
-import { authService } from "@/features/auth/auth-service";
+import { auth } from "@/features/auth/auth-adapter";
 import { toast } from "@/hooks/use-toast";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await authService.requestPasswordReset(values.email);
+      await auth.requestPasswordReset(values.email);
       setSent(true);
     } catch (error) {
       toast.error("Could not send reset link", error instanceof Error ? error.message : undefined);

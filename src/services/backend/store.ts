@@ -1,4 +1,5 @@
 import { seedDatabase } from "@/services/backend/seed";
+import { isSupabaseBackend } from "@/config/env";
 import type { Broker } from "@/types/broker";
 import type { Load } from "@/types/load";
 import type { Claim } from "@/types/claim";
@@ -9,7 +10,7 @@ import type { FollowUp } from "@/types/followup";
 import type { AppSettings } from "@/types/user";
 import { DEFAULT_SETTINGS } from "@/types/user";
 
-/** The full mock dataset — one collection per entity, plus singleton settings. */
+/** The full dataset — one collection per entity, plus singleton settings. */
 export interface Database {
   brokers: Broker[];
   loads: Load[];
@@ -29,7 +30,17 @@ const VERSION_KEY = "dra-mock-db-version";
 
 let db: Database | null = null;
 
-function persist(): void {
+/**
+ * Supabase mirror-store hooks. When running against Supabase, the app operates
+ * on an in-memory snapshot (`db`) that is bootstrapped from and synced back to
+ * the database. These are wired by initDataStore() to avoid a static import
+ * cycle (sync.ts imports this module's Database type).
+ */
+let supabaseShadow: Database | null = null;
+let syncFn: ((current: Database, shadow: Database) => Promise<void>) | null = null;
+let cloneFn: ((db: Database) => Database) | null = null;
+
+function persistMock(): void {
   if (!db) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -39,7 +50,7 @@ function persist(): void {
   }
 }
 
-function load(): Database {
+function loadMock(): Database {
   try {
     const version = Number(localStorage.getItem(VERSION_KEY));
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -54,11 +65,33 @@ function load(): Database {
   return seeded;
 }
 
-/** Access the singleton database, seeding + persisting on first use. */
+/**
+ * Bootstrap the store. In mock mode this is a no-op (lazy seed). In Supabase
+ * mode it loads all tables into the in-memory snapshot and captures a shadow
+ * for change-diffing. Must be awaited (post-auth) before rendering the app.
+ */
+export async function initDataStore(): Promise<void> {
+  if (!isSupabaseBackend) return;
+  const { bootstrapDatabase, syncChanges, cloneDatabase } = await import("@/services/supabase/sync");
+  db = await bootstrapDatabase();
+  supabaseShadow = cloneDatabase(db);
+  syncFn = syncChanges;
+  cloneFn = cloneDatabase;
+}
+
+/** Whether the store is ready for synchronous access. */
+export function isStoreReady(): boolean {
+  return isSupabaseBackend ? db !== null : true;
+}
+
+/** Access the singleton database. Mock mode seeds lazily; Supabase requires init. */
 export function getDb(): Database {
   if (!db) {
-    db = load();
-    persist();
+    if (isSupabaseBackend) {
+      throw new Error("Supabase store not initialized — call initDataStore() after sign-in.");
+    }
+    db = loadMock();
+    persistMock();
   }
   return db;
 }
@@ -67,13 +100,28 @@ export function getDb(): Database {
 export function mutate<T>(fn: (database: Database) => T): T {
   const database = getDb();
   const result = fn(database);
-  persist();
+  if (isSupabaseBackend) {
+    // Push changes to Supabase in the background; the in-memory snapshot is
+    // already up to date so React Query refetches see fresh data immediately.
+    if (syncFn && supabaseShadow && cloneFn) {
+      const shadow = supabaseShadow;
+      const clone = cloneFn;
+      syncFn(database, shadow)
+        .then(() => {
+          supabaseShadow = clone(database);
+        })
+        .catch((err) => console.error("Supabase sync failed:", err));
+    }
+  } else {
+    persistMock();
+  }
   return result;
 }
 
-/** Reset to a fresh seed — used by the "Reset demo data" settings action. */
+/** Reset to a fresh seed — mock demo only. */
 export function resetDb(): void {
+  if (isSupabaseBackend) return;
   db = seedDatabase();
   db.settings = { ...DEFAULT_SETTINGS };
-  persist();
+  persistMock();
 }

@@ -1,5 +1,6 @@
 import { uid, sleep } from "@/lib/utils";
 import { normalizePhone } from "@/lib/format";
+import { isSupabaseBackend } from "@/config/env";
 import {
   PUBLIC_LEADS_STORAGE_KEY,
   type CaseLeadInput,
@@ -21,10 +22,37 @@ function readQueue(): PublicLeadRecord[] {
  * window to prevent double-submits.
  */
 export async function submitPublicLead(input: CaseLeadInput): Promise<PublicLeadRecord> {
+  const record: PublicLeadRecord = {
+    ...input,
+    phone: normalizePhone(input.phone),
+    id: uid("lead"),
+    submittedAt: new Date().toISOString(),
+    source: "landing",
+  };
+
+  // Supabase: post to the public-lead-intake Edge Function (service role).
+  if (isSupabaseBackend) {
+    const { functionsBaseUrl } = await import("@/services/supabase/client");
+    const { env } = await import("@/config/env");
+    const res = await fetch(`${functionsBaseUrl()}/public-lead-intake`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Public anon key satisfies the Supabase gateway; the function itself
+        // requires no JWT (verify_jwt = false).
+        apikey: env.supabase.anonKey,
+        Authorization: `Bearer ${env.supabase.anonKey}`,
+      },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error(`Lead submission failed (${res.status})`);
+    const body = (await res.json()) as { id?: string };
+    return { ...record, id: body.id ?? record.id };
+  }
+
   await sleep(650); // simulated network latency for realistic UX
 
   const queue = readQueue();
-  const normalizedPhone = normalizePhone(input.phone);
 
   const recentDuplicate = queue.find(
     (lead) =>
@@ -33,14 +61,6 @@ export async function submitPublicLead(input: CaseLeadInput): Promise<PublicLead
       Date.now() - new Date(lead.submittedAt).getTime() < 60_000,
   );
   if (recentDuplicate) return recentDuplicate;
-
-  const record: PublicLeadRecord = {
-    ...input,
-    phone: normalizedPhone,
-    id: uid("lead"),
-    submittedAt: new Date().toISOString(),
-    source: "landing",
-  };
 
   try {
     localStorage.setItem(PUBLIC_LEADS_STORAGE_KEY, JSON.stringify([record, ...queue]));

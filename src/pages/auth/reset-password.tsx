@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AuthLayout } from "@/features/auth/components/auth-layout";
-import { authService } from "@/features/auth/auth-service";
+import { auth } from "@/features/auth/auth-adapter";
 import { toast } from "@/hooks/use-toast";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await authService.resetPassword(token, values.password);
+      await auth.resetPassword(token, values.password);
       toast.success("Password updated", "You can now sign in.");
       navigate(routes.login, { replace: true });
     } catch (error) {

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { authService } from "@/features/auth/auth-service";
+import { auth } from "@/features/auth/auth-adapter";
 import { UserRole, type User } from "@/types/user";
 
 interface AuthContextValue {
@@ -11,7 +11,7 @@ interface AuthContextValue {
   loginWithGoogle: () => Promise<void>;
   register: (input: { name: string; email: string; password: string }) => Promise<void>;
   verifyMagicLink: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,28 +21,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setUser(authService.getSession());
-    setIsLoading(false);
+    let active = true;
+    auth
+      .getSession()
+      .then((session) => active && setUser(session))
+      .finally(() => active && setIsLoading(false));
+
+    // Supabase updates the session on OAuth/magic-link return; keep in sync.
+    const unsubscribe = auth.onAuthChange?.((next) => {
+      if (active) setUser(next);
+    });
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
   }, []);
 
   const loginWithPassword = useCallback(async (email: string, password: string) => {
-    setUser(await authService.loginWithPassword(email, password));
+    setUser(await auth.loginWithPassword(email, password));
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
-    setUser(await authService.loginWithGoogle());
+    const next = await auth.loginWithGoogle();
+    if (next) setUser(next);
   }, []);
 
   const register = useCallback(async (input: { name: string; email: string; password: string }) => {
-    setUser(await authService.register(input));
+    setUser(await auth.register(input));
   }, []);
 
   const verifyMagicLink = useCallback(async (token: string) => {
-    setUser(await authService.verifyMagicLink(token));
+    setUser(await auth.verifyMagicLink(token));
   }, []);
 
-  const logout = useCallback(() => {
-    authService.logout();
+  const logout = useCallback(async () => {
+    await auth.logout();
     setUser(null);
   }, []);
 

@@ -6,7 +6,7 @@
  * provide the Base44 app id to run against the real backend.
  */
 
-type DataBackend = "mock" | "base44";
+type DataBackend = "mock" | "supabase";
 
 function readString(key: string, fallback = ""): string {
   const value = import.meta.env[key as keyof ImportMetaEnv];
@@ -23,15 +23,19 @@ export const env = {
   appName: "Detention Recover AI",
   appUrl: readString("VITE_APP_URL", "https://detentionrecover.ai"),
   dataBackend: (readString("VITE_DATA_BACKEND", "mock") as DataBackend) satisfies DataBackend,
-  base44: {
-    appId: readString("VITE_BASE44_APP_ID"),
-    apiUrl: readString("VITE_BASE44_API_URL", "https://app.base44.com"),
+  supabase: {
+    url: readString("VITE_SUPABASE_URL"),
+    anonKey: readString("VITE_SUPABASE_ANON_KEY"),
+    /** Base URL for Edge Functions; derived from the project URL if unset. */
+    functionsUrl: readString("VITE_SUPABASE_FUNCTIONS_URL"),
   },
   features: {
     /** Public registration should be disabled after deployment (single admin). */
     publicRegistration: readBool("VITE_ENABLE_REGISTRATION", true),
     googleAuth: readBool("VITE_ENABLE_GOOGLE_AUTH", true),
     magicLink: readBool("VITE_ENABLE_MAGIC_LINK", true),
+    /** SMS/WhatsApp is disabled for now — email-only via Resend. */
+    sms: readBool("VITE_ENABLE_SMS", false),
   },
   support: {
     email: readString("VITE_SUPPORT_EMAIL", "recover@detentionrecover.ai"),
@@ -40,3 +44,4 @@ export const env = {
 } as const;
 
 export const isMockBackend = env.dataBackend === "mock";
+export const isSupabaseBackend = env.dataBackend === "supabase";

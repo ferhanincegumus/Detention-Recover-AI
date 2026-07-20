@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { AuthLayout } from "@/features/auth/components/auth-layout";
-import { authService } from "@/features/auth/auth-service";
+import { auth } from "@/features/auth/auth-adapter";
 import { toast } from "@/hooks/use-toast";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
@@ -23,7 +23,7 @@ export default function MagicLinkPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await authService.sendMagicLink(values.email);
+      await auth.sendMagicLink(values.email);
       setSentTo(values.email);
     } catch (error) {
       toast.error("Could not send link", error instanceof Error ? error.message : undefined);

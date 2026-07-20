@@ -3,6 +3,7 @@ import { OWNER_ID } from "@/services/backend/seed";
 import { byDateDesc, matchesSearch, notDeleted, withLatency } from "@/services/api/helpers";
 import { uid } from "@/lib/utils";
 import { readPublicLeads } from "@/features/marketing/lead-submission";
+import { isSupabaseBackend } from "@/config/env";
 import type { ID, ListParams } from "@/types/common";
 import { LeadStatus, type CaseLead, type LeadNote } from "@/types/lead";
 import { ActivityType } from "@/types/communication";
@@ -14,6 +15,9 @@ export interface LeadFilters extends ListParams {
 
 /** Pull any landing-page submissions into the leads collection (idempotent). */
 function ingestPublicLeads(): void {
+  // Supabase ingests leads via the public-lead-intake Edge Function, so this
+  // localStorage bridge only applies to the mock backend.
+  if (isSupabaseBackend) return;
   const publicLeads = readPublicLeads();
   if (publicLeads.length === 0) return;
   mutate((db) => {
