@@ -5,6 +5,7 @@ import { claimsApi } from "@/services/api/claims";
 import { followupsApi } from "@/services/api/followups";
 import { StopType } from "@/types/load";
 import { ClaimStatus } from "@/types/claim";
+import { ChargeType } from "@/types/common";
 import { FollowUpCadence, FollowUpStatus } from "@/types/followup";
 
 const loadInput = {
@@ -12,6 +13,7 @@ const loadInput = {
   brokerName: "TQL Logistics",
   customerName: "Test Carrier",
   customerPhone: "+15551234567",
+  chargeType: ChargeType.Detention,
   freeHours: 2,
   ratePerHour: 75,
   stops: [

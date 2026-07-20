@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime, formatDuration, formatPhone } from "@/lib/format";
 import { stopDetentionHours } from "@/services/domain/detention";
 import { StopType } from "@/types/load";
+import { ChargeType, CHARGE_TYPE_LABELS } from "@/types/common";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
 
@@ -45,6 +46,8 @@ export default function LoadDetailPage() {
       />
     );
   }
+
+  const isDetention = load.chargeType === ChargeType.Detention;
 
   const handleCreateClaim = async () => {
     try {
@@ -85,8 +88,13 @@ export default function LoadDetailPage() {
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Stops & detention</CardTitle>
-              <RiskBadge level={load.riskLevel} />
+              <CardTitle>
+                {isDetention ? "Stops & detention" : `${CHARGE_TYPE_LABELS[load.chargeType]} charge`}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="muted">{CHARGE_TYPE_LABELS[load.chargeType]}</Badge>
+                <RiskBadge level={load.riskLevel} />
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {load.stops.map((stop) => {
@@ -98,9 +106,11 @@ export default function LoadDetailPage() {
                         <MapPin className="h-4 w-4 text-primary" />
                         {stop.type === StopType.Pickup ? "Pickup" : "Delivery"} · {stop.facilityName ?? stop.address}
                       </span>
-                      <span className="tabular text-sm font-medium text-success">
-                        {formatCurrency(Math.round(hours * load.ratePerHour))}
-                      </span>
+                      {isDetention && (
+                        <span className="tabular text-sm font-medium text-success">
+                          {formatCurrency(Math.round(hours * load.ratePerHour))}
+                        </span>
+                      )}
                     </div>
                     <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
                       <div>
@@ -121,11 +131,9 @@ export default function LoadDetailPage() {
               })}
               <Separator />
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {load.billableDetentionHours}h billable · {formatCurrency(load.ratePerHour)}/hr · {load.freeHours}h free
-                </span>
+                <span className="text-sm text-muted-foreground">{load.chargeBasis}</span>
                 <span className="tabular font-display text-2xl font-bold text-success">
-                  {formatCurrency(load.detentionAmount)}
+                  {formatCurrency(load.chargeAmount)}
                 </span>
               </div>
             </CardContent>

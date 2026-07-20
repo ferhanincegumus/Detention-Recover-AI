@@ -22,6 +22,7 @@ import {
 import { FollowUpCadence, FollowUpStatus, type FollowUp } from "@/types/followup";
 import type { Broker } from "@/types/broker";
 import { calculateDetention, detectMissingDocuments } from "@/services/domain/detention";
+import { calculateChargeAmount } from "@/services/domain/charges";
 import { calculateCommission } from "@/services/domain/commission";
 import { scoreBrokerRisk, scoreLoadStrength, estimateRecoveryProbability } from "@/services/domain/risk";
 import { DEFAULT_SETTINGS } from "@/types/user";
@@ -189,12 +190,36 @@ export function seedDatabase(): Database {
     ClaimStatus.Sent,
   ];
 
+    // Charge-type mix so the app shows detention, layover, TONU & accessorial.
+    const chargePlan: ChargeType[] = [
+      ChargeType.Detention, ChargeType.Detention, ChargeType.Layover, ChargeType.Detention,
+      ChargeType.Tonu, ChargeType.Detention, ChargeType.Detention, ChargeType.Layover,
+      ChargeType.Detention, ChargeType.Accessorial, ChargeType.Detention, ChargeType.Detention,
+      ChargeType.Tonu, ChargeType.Detention, ChargeType.Layover, ChargeType.Detention,
+    ];
+
   statusPlan.forEach((status, index) => {
     const broker = brokers[index % brokers.length];
     const customer = pick(CUSTOMERS);
     const ratePerHour = pick([65, 75, 85, 50, 100]);
     const { stops, hasTimestamps } = makeStops(freeHours);
     const detention = calculateDetention(stops, freeHours, ratePerHour);
+
+    const chargeType = chargePlan[index] ?? ChargeType.Detention;
+    const layoverNights = chargeType === ChargeType.Layover ? pick([1, 2]) : undefined;
+    const layoverNightlyRate = chargeType === ChargeType.Layover ? pick([150, 200, 250]) : undefined;
+    const tonuAmount = chargeType === ChargeType.Tonu ? pick([150, 250, 300]) : undefined;
+    const accessorialAmount = chargeType === ChargeType.Accessorial ? pick([120, 180, 240]) : undefined;
+    const accessorialDescription =
+      chargeType === ChargeType.Accessorial ? "Lumper fee reimbursement" : undefined;
+    const charge = calculateChargeAmount({
+      chargeType,
+      detentionAmount: detention.amount,
+      layoverNights,
+      layoverNightlyRate,
+      tonuAmount,
+      accessorialAmount,
+    });
 
     const hasBol = rng() > 0.2;
     const hasPod = rng() > 0.25;
@@ -205,10 +230,12 @@ export function seedDatabase(): Database {
       hasTimestamps,
     };
     const partialLoad = { documents: docFlags, stops };
-    const missingDocuments = detectMissingDocuments(partialLoad);
+    const missingDocuments = detectMissingDocuments(partialLoad, chargeType);
     const strength = scoreLoadStrength({
+      chargeType,
       documents: docFlags,
       billableDetentionHours: detention.billableHours,
+      chargeAmount: charge.amount,
       missingDocuments,
     });
 
@@ -224,11 +251,19 @@ export function seedDatabase(): Database {
       customerName: customer.name,
       customerPhone: customer.phone,
       driverName: customer.driver,
+      chargeType,
       freeHours,
       ratePerHour,
       stops,
       billableDetentionHours: detention.billableHours,
       detentionAmount: detention.amount,
+      layoverNights,
+      layoverNightlyRate,
+      tonuAmount,
+      accessorialAmount,
+      accessorialDescription,
+      chargeAmount: charge.amount,
+      chargeBasis: charge.basis,
       documents: docFlags,
       riskScore: strength.score,
       riskLevel: strength.level,
@@ -273,9 +308,9 @@ export function seedDatabase(): Database {
     const isApproved = status === ClaimStatus.Approved;
     const settlementFactor = pick([0.75, 0.85, 1, 0.9]);
     const recovered = isPaid
-      ? Math.round(detention.amount * settlementFactor)
+      ? Math.round(charge.amount * settlementFactor)
       : isApproved
-        ? Math.round(detention.amount * settlementFactor)
+        ? Math.round(charge.amount * settlementFactor)
         : 0;
     const commission = calculateCommission(recovered, commissionRate);
 
@@ -337,12 +372,12 @@ export function seedDatabase(): Database {
       brokerName: broker.name,
       customerName: customer.name,
       customerPhone: customer.phone,
-      chargeType: ChargeType.Detention,
+      chargeType,
       status,
-      claimedAmount: detention.amount,
+      claimedAmount: charge.amount,
       recoveredAmount: recovered,
       settlementOffer:
-        status === ClaimStatus.SettlementOffered ? Math.round(detention.amount * 0.7) : null,
+        status === ClaimStatus.SettlementOffered ? Math.round(charge.amount * 0.7) : null,
       commissionRate,
       commissionAmount: commission.commissionAmount,
       carrierPayout: commission.carrierPayout,

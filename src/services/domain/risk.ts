@@ -1,22 +1,34 @@
 import { clamp, percentage } from "@/lib/utils";
-import { riskFromScore, type RiskLevel } from "@/types/common";
+import { ChargeType, riskFromScore, type RiskLevel } from "@/types/common";
 import type { Load } from "@/types/load";
 import type { Claim } from "@/types/claim";
 import { ClaimStatus } from "@/types/claim";
 
 /**
  * Load risk = likelihood this load yields a defensible, recoverable claim.
- * Higher score → stronger claim. Missing docs and thin detention lower it.
+ * Higher score → stronger claim. Scoring is charge-type aware: detention leans
+ * on timestamps + billable hours, while flat charges (TONU/accessorial) and
+ * layover lean on documentation and a non-zero amount.
  */
-export function scoreLoadStrength(load: Pick<Load, "documents" | "billableDetentionHours" | "missingDocuments">): {
-  score: number;
-  level: RiskLevel;
-} {
+export function scoreLoadStrength(
+  load: Pick<Load, "documents" | "billableDetentionHours" | "missingDocuments"> & {
+    chargeType?: ChargeType;
+    chargeAmount?: number;
+  },
+): { score: number; level: RiskLevel } {
+  const chargeType = load.chargeType ?? ChargeType.Detention;
   let score = 100;
   score -= load.missingDocuments.length * 18;
-  if (!load.documents.hasTimestamps) score -= 15;
-  if (load.billableDetentionHours < 1) score -= 25;
-  else if (load.billableDetentionHours < 2) score -= 10;
+
+  if (chargeType === ChargeType.Detention) {
+    if (!load.documents.hasTimestamps) score -= 15;
+    if (load.billableDetentionHours < 1) score -= 25;
+    else if (load.billableDetentionHours < 2) score -= 10;
+  } else {
+    // Non-detention: a stated, non-zero amount is what makes the claim real.
+    if ((load.chargeAmount ?? 0) <= 0) score -= 30;
+  }
+
   const clamped = clamp(Math.round(score), 5, 100);
   // Higher strength score → LOWER risk. Invert before bucketing so a weak
   // claim (low score) surfaces as high risk.

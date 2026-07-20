@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { routes } from "@/config/routes";
 import type { Load } from "@/types/load";
+import { CHARGE_TYPE_LABELS } from "@/types/common";
 
 export default function LoadsPage() {
   useDocumentMeta({ title: "Loads · Detention Recover AI" });
@@ -112,7 +113,8 @@ export default function LoadsPage() {
               <TableRow>
                 <TableHead>Reference</TableHead>
                 <TableHead>Broker</TableHead>
-                <TableHead>Detention</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead>Claim strength</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Added</TableHead>
@@ -131,7 +133,8 @@ export default function LoadsPage() {
                     <span className="block text-xs text-muted-foreground">{load.customerName ?? "—"}</span>
                   </TableCell>
                   <TableCell>{load.brokerName}</TableCell>
-                  <TableCell className="tabular font-medium">{formatCurrency(load.detentionAmount)}</TableCell>
+                  <TableCell><Badge variant="muted">{CHARGE_TYPE_LABELS[load.chargeType]}</Badge></TableCell>
+                  <TableCell className="tabular font-medium">{formatCurrency(load.chargeAmount)}</TableCell>
                   <TableCell><RiskBadge level={load.riskLevel} /></TableCell>
                   <TableCell>
                     {load.claimId ? (

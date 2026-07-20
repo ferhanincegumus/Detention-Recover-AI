@@ -26,6 +26,7 @@ import { useSettings } from "@/services/hooks/use-settings";
 import { loadFormSchema, emptyLoadForm, type LoadFormValues } from "@/features/loads/load-schema";
 import type { LoadInput } from "@/services/api/loads";
 import { StopType, type Load } from "@/types/load";
+import { ChargeType } from "@/types/common";
 
 function toLoadInput(values: LoadFormValues): LoadInput {
   return {
@@ -34,6 +35,8 @@ function toLoadInput(values: LoadFormValues): LoadInput {
     customerName: values.customerName,
     customerPhone: values.customerPhone,
     driverName: values.driverName,
+    // Charge-type selector is added in the next step; detention is the default.
+    chargeType: ChargeType.Detention,
     freeHours: values.freeHours,
     ratePerHour: values.ratePerHour,
     stops: values.stops.map((s) => ({

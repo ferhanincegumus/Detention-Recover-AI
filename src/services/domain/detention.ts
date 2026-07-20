@@ -1,6 +1,7 @@
 import { differenceInMinutes, parseISO } from "date-fns";
 import type { Load, LoadStop } from "@/types/load";
-import type { USD } from "@/types/common";
+import { ChargeType, type USD } from "@/types/common";
+import { requiredDocsFor } from "@/services/domain/charges";
 
 /** Detained hours at a single stop, beyond the load's free time. */
 export function stopDetentionHours(stop: LoadStop, freeHours: number): number {
@@ -35,15 +36,27 @@ export function calculateDetention(
   return { billableHours: Number(billableHours.toFixed(2)), amount, perStop };
 }
 
-/** Which supporting documents are still missing for a defensible claim. */
-export function detectMissingDocuments(load: Pick<Load, "documents" | "stops">): string[] {
+/**
+ * Which supporting documents are still missing for a defensible claim. The
+ * required evidence depends on the charge type (e.g. TONU needs the rate
+ * confirmation's cancellation terms, not gate timestamps).
+ */
+export function detectMissingDocuments(
+  load: Pick<Load, "documents" | "stops">,
+  chargeType: ChargeType = ChargeType.Detention,
+): string[] {
+  const { needsTimestamps, needsPod } = requiredDocsFor(chargeType);
   const missing: string[] = [];
   if (!load.documents.hasRateConfirmation) missing.push("Rate confirmation");
-  if (!load.documents.hasBol) missing.push("Bill of lading (BOL)");
-  if (!load.documents.hasPod) missing.push("Proof of delivery (POD)");
-  const missingTimestamps = load.stops.some((s) => !s.arrivedAt || !s.departedAt);
-  if (!load.documents.hasTimestamps || missingTimestamps) {
-    missing.push("Gate in/out timestamps");
+  // BOL proves a shipment moved — irrelevant for TONU (cancelled) & accessorials.
+  const needsBol = chargeType === ChargeType.Detention || chargeType === ChargeType.Layover;
+  if (needsBol && !load.documents.hasBol) missing.push("Bill of lading (BOL)");
+  if (needsPod && !load.documents.hasPod) missing.push("Proof of delivery (POD)");
+  if (needsTimestamps) {
+    const missingTimestamps = load.stops.some((s) => !s.arrivedAt || !s.departedAt);
+    if (!load.documents.hasTimestamps || missingTimestamps) {
+      missing.push("Gate in/out timestamps");
+    }
   }
   return missing;
 }

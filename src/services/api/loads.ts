@@ -2,6 +2,7 @@ import { getDb, mutate } from "@/services/backend/store";
 import { OWNER_ID } from "@/services/backend/seed";
 import { byDateDesc, matchesSearch, notDeleted, withLatency } from "@/services/api/helpers";
 import { calculateDetention, detectMissingDocuments } from "@/services/domain/detention";
+import { calculateChargeAmount } from "@/services/domain/charges";
 import { scoreLoadStrength, estimateRecoveryProbability } from "@/services/domain/risk";
 import { calculateCommission } from "@/services/domain/commission";
 import { uid } from "@/lib/utils";
@@ -25,30 +26,57 @@ export interface LoadInput {
   customerName?: string;
   customerPhone?: string;
   driverName?: string;
+  chargeType: ChargeType;
   freeHours: number;
   ratePerHour: number;
   stops: Omit<LoadStop, "id">[];
+  layoverNights?: number;
+  layoverNightlyRate?: number;
+  tonuAmount?: number;
+  accessorialAmount?: number;
+  accessorialDescription?: string;
   documents: Load["documents"];
   notes?: string;
 }
 
-/** Derive computed detention/risk fields from raw load inputs. */
-function deriveLoad(input: LoadInput): Pick<
+type DerivedLoad = Pick<
   Load,
-  "stops" | "billableDetentionHours" | "detentionAmount" | "missingDocuments" | "riskScore" | "riskLevel"
-> {
+  | "stops"
+  | "billableDetentionHours"
+  | "detentionAmount"
+  | "chargeAmount"
+  | "chargeBasis"
+  | "missingDocuments"
+  | "riskScore"
+  | "riskLevel"
+>;
+
+/** Derive computed charge/detention/risk fields from raw load inputs. */
+function deriveLoad(input: LoadInput): DerivedLoad {
   const stops: LoadStop[] = input.stops.map((s) => ({ ...s, id: uid("stop") }));
   const detention = calculateDetention(stops, input.freeHours, input.ratePerHour);
-  const missingDocuments = detectMissingDocuments({ documents: input.documents, stops });
+  const charge = calculateChargeAmount({
+    chargeType: input.chargeType,
+    detentionAmount: detention.amount,
+    layoverNights: input.layoverNights,
+    layoverNightlyRate: input.layoverNightlyRate,
+    tonuAmount: input.tonuAmount,
+    accessorialAmount: input.accessorialAmount,
+  });
+  const missingDocuments = detectMissingDocuments({ documents: input.documents, stops }, input.chargeType);
   const strength = scoreLoadStrength({
+    chargeType: input.chargeType,
     documents: input.documents,
     billableDetentionHours: detention.billableHours,
+    chargeAmount: charge.amount,
     missingDocuments,
   });
   return {
     stops,
     billableDetentionHours: detention.billableHours,
     detentionAmount: detention.amount,
+    chargeAmount: charge.amount,
+    chargeBasis: charge.basis,
     missingDocuments,
     riskScore: strength.score,
     riskLevel: strength.level,
@@ -90,8 +118,14 @@ export const loadsApi = {
           customerName: input.customerName,
           customerPhone: input.customerPhone,
           driverName: input.driverName,
+          chargeType: input.chargeType,
           freeHours: input.freeHours,
           ratePerHour: input.ratePerHour,
+          layoverNights: input.layoverNights,
+          layoverNightlyRate: input.layoverNightlyRate,
+          tonuAmount: input.tonuAmount,
+          accessorialAmount: input.accessorialAmount,
+          accessorialDescription: input.accessorialDescription,
           documents: input.documents,
           notes: input.notes ?? "",
           claimId: null,
@@ -160,9 +194,9 @@ export const loadsApi = {
           brokerName: load.brokerName,
           customerName: load.customerName,
           customerPhone: load.customerPhone,
-          chargeType: ChargeType.Detention,
+          chargeType: load.chargeType,
           status: ClaimStatus.Draft,
-          claimedAmount: load.detentionAmount,
+          claimedAmount: load.chargeAmount,
           recoveredAmount: 0,
           settlementOffer: null,
           commissionRate: db.settings.defaultCommissionRate,

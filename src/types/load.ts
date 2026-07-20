@@ -1,4 +1,4 @@
-import type { BaseEntity, ID, ISODate, RiskLevel, USD } from "@/types/common";
+import type { BaseEntity, ChargeType, ID, ISODate, RiskLevel, USD } from "@/types/common";
 
 export const StopType = {
   Pickup: "pickup",
@@ -34,6 +34,8 @@ export interface Load extends BaseEntity {
   customerName?: string;
   customerPhone?: string;
   driverName?: string;
+  /** What kind of charge this load's claim pursues. */
+  chargeType: ChargeType;
   /** Free time before detention accrues (hours). Broker-specific. */
   freeHours: number;
   /** Detention rate per hour ($). */
@@ -43,6 +45,19 @@ export interface Load extends BaseEntity {
   billableDetentionHours: number;
   /** Computed detention owed = billableDetentionHours * ratePerHour. */
   detentionAmount: USD;
+  /** Layover: number of nights. */
+  layoverNights?: number;
+  /** Layover: nightly rate ($). */
+  layoverNightlyRate?: USD;
+  /** TONU: flat fee ($). */
+  tonuAmount?: USD;
+  /** Accessorial: amount ($) and description. */
+  accessorialAmount?: USD;
+  accessorialDescription?: string;
+  /** Resolved claim amount for this load's charge type. */
+  chargeAmount: USD;
+  /** Plain-language basis for the charge amount (e.g. "2 nights × $150"). */
+  chargeBasis: string;
   documents: DocumentFlags;
   /** 0–100 likelihood this load has a recoverable, defensible claim. */
   riskScore: number;
